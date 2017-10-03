@@ -13,6 +13,7 @@
 
 
 from captureAgents import CaptureAgent
+from baselineTeam import ReflexCaptureAgent
 import random, time, util
 from game import Directions
 import game
@@ -92,7 +93,7 @@ class DummyAgent(CaptureAgent):
 
         return random.choice(actions)
 
-class QLearningAgent(CaptureAgent):
+class QLearningAgent(ReflexCaptureAgent):
 
     def __init__(self, index, epsilon = 0.1, gamma = 0.9, alpha = 0.8):
         self.index = index
@@ -101,9 +102,27 @@ class QLearningAgent(CaptureAgent):
         self.alpha = float(alpha)
         self.brain = util.Counter()
         self.observationHistory = []
+        
+    def getFeatures(self, gameState, action):
+        features = util.Counter()
+        successor = self.getSuccessor(gameState, action)
+        foodList = self.getFood(successor).asList()    
+        features['successorScore'] = -len(foodList)#self.getScore(successor)
+
+        # Compute distance to the nearest food
+
+        if len(foodList) > 0: # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
+        return features
+
+    def getWeights(self, gameState, action):
+        return {'successorScore': 100, 'distanceToFood': -1}
 
 
     def registerInitialState(self, gameState):
+        self.start = gameState.getAgentPosition(self.index)
         CaptureAgent.registerInitialState(self, gameState)
 
 
@@ -168,6 +187,20 @@ class QLearningAgent(CaptureAgent):
                 maxDis = self.getMazeDistance(curPos, food)
                 furthestFood = food
         return furthestFood
+        
+    def getNearestFood(self, gameState):
+        nearestFood = None
+        foods = self.getFood(gameState).asList()
+        curPos = gameState.getAgentPosition(self.index)
+        if len(foods) == 0:
+            return (0, 0)
+        minDis = 9999
+        for food in foods:
+            if self.getMazeDistance(curPos, food) <= minDis:
+                minDis = self.getMazeDistance(curPos, food)
+                nearestFood = food
+        return nearestFood
+   
 
     def setRewardDict(self, gameState, action):
         furthestFood = self.getFurthestFood(gameState)
@@ -198,32 +231,64 @@ class QLearningAgent(CaptureAgent):
             return self.getBestAction(gameState)
 
     def chooseAction(self, gameState):
-        #curState = gameState
+        curPos = gameState.getAgentPosition(self.index)
+        nearestfood=self.getNearestFood(gameState)
+        print self.getMazeDistance(curPos,nearestfood)
+        
+        if self.getMazeDistance(curPos,nearestfood) > 5:
+        
+            actions = gameState.getLegalActions(self.index)
+
+            # You can profile your evaluation time by uncommenting these lines
+            # start = time.time()
+            values = [self.evaluate(gameState, a) for a in actions]
+            # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+
+            maxValue = max(values)
+        
+            bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        
+
+            foodLeft = len(self.getFood(gameState).asList())
+
+            if foodLeft <= 2:
+                bestDist = 9999
+                for action in actions:
+                    successor = self.getSuccessor(gameState, action)
+                    pos2 = successor.getAgentPosition(self.index)
+                    dist = self.getMazeDistance(self.start,pos2)
+                    if dist < bestDist:
+                        bestAction = action
+                        bestDist = dist
+                return bestAction
+
+            return random.choice(bestActions)
 
 
-        if util.flipCoin(self.epsilon):
-            legalActions = gameState.getLegalActions(self.index)
-            random.choice(legalActions)
         else:
+            if util.flipCoin(self.epsilon):
+                legalActions = gameState.getLegalActions(self.index)
+                random.choice(legalActions)
+            else:
 
-            for i in range(50):
-                #print i
-                curState = gameState
-                foods = self.getFood(curState).asList()
-                while curState.getAgentPosition(self.index) not in foods:
-                    curPos = curState.getAgentPosition(self.index)
-                    legalActions = curState.getLegalActions(self.index)
-                    legalActions.remove('Stop')
-                    #action = random.choice(legalActions)
-                    action = self.getBestAction(curState)
-                    nextState = curState.generateSuccessor(self.index, action)
-                    futureRewards = []
-                    for nextAction in nextState.getLegalActions(self.index):
-                        futureRewards.append(self.getQValue(nextState, nextAction))
-                    QState = self.getReward(curState, action) + self.gamma * max(futureRewards)
-                    self.brain[(curState, action)] = QState
-                    curState = nextState
-        return self.getBestAction(gameState)
+                for i in range(50):
+                    #print i
+                    curState = gameState
+                    foods = self.getFood(curState).asList()
+                    while curState.getAgentPosition(self.index) not in foods:
+                        curPos = curState.getAgentPosition(self.index)
+                        legalActions = curState.getLegalActions(self.index)
+                        legalActions.remove('Stop')
+                        #action = random.choice(legalActions)
+                        action = self.getBestAction(curState)
+                        nextState = curState.generateSuccessor(self.index, action)
+                        futureRewards = []
+                        for nextAction in nextState.getLegalActions(self.index):
+                            futureRewards.append(self.getQValue(nextState, nextAction))
+                        QState = self.getReward(curState, action) + self.gamma * max(futureRewards)
+                        self.brain[(curState, action)] = QState
+                        curState = nextState
+            return self.getBestAction(gameState)
 
 
 
