@@ -190,3 +190,180 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 
     def getWeights(self, gameState, action):
         return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+
+class QlearningAgent(CaptureAgent):
+
+    def __init__(self, index, epsilon = 0.05, alpha = 0.5, discount = 0.9):
+        self.index = index
+        self.epsilon = float(epsilon)
+        self.alpha = float(alpha)
+        self.discount = float(discount)
+        self.observationHistory = []
+        self.solutionMatrix = util.Counter()
+
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(self, gameState)
+
+
+
+    def getFeatures(self, gameState, action):
+        features = util.Counter()
+        successor = gameState.generateSuccessor(self.index, action)
+
+        myState = successor.getAgentState(self.index)
+        myPos = myState.getPosition()
+
+        # Computes whether we're on defense (1) or offense (0)
+        features['onDefense'] = 1
+        if myState.isPacman: features['onDefense'] = 0
+
+        # Computes distance to invaders we can see
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+        features['numInvaders'] = len(invaders)
+        if len(invaders) > 0:
+            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+            features['invaderDistance'] = min(dists)
+
+        if action == Directions.STOP: features['stop'] = 1
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        if action == rev: features['reverse'] = 1
+
+        return features
+
+    def getWeights(self, gameState, action):
+        return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+
+    def evaluate(self, gameState, action):
+        features = self.getFeatures(gameState, action)
+        weights = self.getWeights(gameState, action)
+        return features * weights
+
+    def getQValue(self, gameState, action):
+        position = gameState.getAgentPosition(self.index)
+        return self.solutionMatrix[(position, action)]
+
+    def computeActionsFromQvalues(self, gameState):
+
+        bestAction = None
+        bestValue = 0
+        for action in gameState.getLegalActions(self.index):
+            tmpVal = self.getQValue(gameState, action)
+            if tmpVal > bestValue or bestAction is None:
+                bestAction = action
+                bestValue = tmpVal
+        if bestAction == None:
+            return random.choice(gameState.getLegalActions(self.index))
+        return bestAction
+
+    def computeValueFromQvalues(self, gameState):
+        tmp = []
+        actions = gameState.getLegalActions()
+        for action in actions:
+            tmp.append(self.getQValue(gameState, action))
+        if len(actions) == 0:
+            return 0.0
+        return max(tmp)
+
+    def getFurthestFood(self, gameState):
+        furthestFood = None
+        foods = self.getFood(gameState).asList()
+        curPos = gameState.getAgentPosition(self.index)
+        if len(foods) == 0:
+            return (0, 0)
+        maxDis = 0
+        for food in foods:
+            if self.getMazeDistance(curPos, food) > maxDis:
+                maxDis = self.getMazeDistance(curPos, food)
+                furthestFood = food
+        return furthestFood
+
+    def getReward(self, gameState):
+        if self.getPreviousObservation() is None:
+            return 0
+        reward = 0
+        previousState = self.getPreviousObservation()
+        previousFood = self.getFood(previousState).asList()
+        myPosition = gameState.getAgentPosition(self.index)
+        currentFood = self.getFood(gameState).asList()
+
+        if myPosition == self.getFurthestFood(gameState):
+            return 100
+
+        if myPosition in previousFood and myPosition not in currentFood:
+            reward += 10
+
+        return reward
+
+    def update(self, gameState, action, nextState, reward):
+
+        curPos = gameState.getAgentPosition(self.index)
+        firstPart = self.getQValue(gameState, action)
+        if len(nextState.getLegalActions()) == 0:
+            tmp = reward - firstPart
+        else:
+            tmp = reward + (self.discount * max([self.getQValue(nextState, nextAction) for nextAction in nextState.getLegalActions(self.index)])) - firstPart
+        secondPart = self.alpha * tmp
+
+
+        self.solutionMatrix[(curPos, action)] = firstPart + secondPart
+
+
+
+
+
+    def chooseAction(self, gameState):
+        legalActions = gameState.getLegalActions(self.index)
+        curState = gameState
+        endPoint = self.getFurthestFood(gameState)
+        if util.flipCoin(self.epsilon):
+            random.choice(legalActions)
+        else:
+
+            for i in range(100):
+                curPos = curState.getAgentPosition(self.index)
+                legalActions_tmp = curState.getLegalActions(self.index)
+                legalActions_tmp.remove('Stop')
+                actTmp = random.choice(legalActions_tmp)
+                nextState = curState.generateSuccessor(self.index, actTmp)
+                reward = self.getReward(curState)
+                #reward = self.evaluate(curState, actTmp)
+                self.update(curState, actTmp, nextState, reward)
+                curState = nextState
+
+
+            return self.computeActionsFromQvalues(gameState)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

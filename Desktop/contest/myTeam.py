@@ -18,12 +18,13 @@ from game import Directions
 import game
 
 
+
 #################
 # Team creation #
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='DummyAgent', second='DummyAgent'):
+               first='QLearningAgent', second='QLearningAgent'):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -91,8 +92,201 @@ class DummyAgent(CaptureAgent):
 
         return random.choice(actions)
 
-class AgentUncle(CaptureAgent):
-    def __init__(self, index):
+class QLearningAgent(CaptureAgent):
+
+    def __init__(self, index, epsilon = 0.1, gamma = 0.9, alpha = 0.8):
         self.index = index
-        self.observation = []
+        self.epsilon = float(epsilon)
+        self.gamma = float(gamma)
+        self.alpha = float(alpha)
+        self.brain = util.Counter()
+        self.observationHistory = []
+
+
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(self, gameState)
+
+
+    def getQValue(self, gameState, action):
+        return self.brain[(gameState, action)]
+        '''
+        nextState = gameState.generateSuccessor(self.index, action)
+        pos = nextState.getAgentPosition(self.index)
+        foods = self.getFood(gameState)
+        furthestFood = self.getFurthestFood(gameState)
+        if pos in foods:
+            return 100
+        return float(1) / self.getMazeDistance(pos, furthestFood)
+        '''
+
+    def getBestAction(self, gameState):
+        bestAction = None
+        maxVal = 0
+        legalActions = gameState.getLegalActions(self.index)
+        legalActions.remove('Stop')
+        for action in legalActions:
+            qValTmp = self.getQValue(gameState, action)
+            if qValTmp > maxVal:
+                bestAction = action
+                maxVal = qValTmp
+        if bestAction == None:
+            return random.choice(legalActions)
+        else:
+            return bestAction
+
+    def getFurthestFood(self, gameState):
+        furthestFood = None
+        foods = self.getFood(gameState).asList()
+        curPos = gameState.getAgentPosition(self.index)
+        if len(foods) == 0:
+            return (0, 0)
+        maxDis = 0
+        for food in foods:
+            if self.getMazeDistance(curPos, food) > maxDis:
+                maxDis = self.getMazeDistance(curPos, food)
+                furthestFood = food
+        return furthestFood
+
+    def update(self, gameState, action, nextState, reward):
+        firstPart = self.getQValue(gameState, action)
+        if len(nextState.getLegalActions(self.index)) == 0:
+            tmp = reward - firstPart
+        else:
+            tmp = reward + (self.gamma * max([self.getQValue(nextState, nextAction) for nextAction in nextState.getLegalActions(self.index)])) - firstPart
+        secondPart = self.alpha * tmp
+        self.brain[(gameState, action)] = firstPart + secondPart
+
+    def getFurthestFood(self, gameState):
+        furthestFood = None
+        foods = self.getFood(gameState).asList()
+        curPos = gameState.getAgentPosition(self.index)
+        if len(foods) == 0:
+            return (0, 0)
+        maxDis = 0
+        for food in foods:
+            if self.getMazeDistance(curPos, food) > maxDis:
+                maxDis = self.getMazeDistance(curPos, food)
+                furthestFood = food
+        return furthestFood
+
+    def setRewardDict(self, gameState, action):
+        furthestFood = self.getFurthestFood(gameState)
+        nextState = gameState.generateSuccessor(self.index, action)
+        if nextState.getAgentPosition(self.index) == furthestFood:
+            self.rewardDict[(gameState, action)] = 100
+
+    def getReward(self, gameState, action):
+        nextState = gameState.generateSuccessor(self.index, action)
+        pos = nextState.getAgentPosition(self.index)
+        foods = self.getFood(gameState)
+        furtestFood = self.getFurthestFood(gameState)
+        legalActions = gameState.getLegalActions(self.index)
+        if action not in legalActions:
+            return -10
+        elif pos in foods:
+            return 100
+        else:
+            return 0
+            #return float(1) / self.getMazeDistance(pos, furtestFood)
+
+    def epsilonAction(self, gameState):
+
+        legalActions = gameState.getLegalActions(self.index)
+        if util.flipCoin(self.epsilon):
+            return random.choice(legalActions)
+        else:
+            return self.getBestAction(gameState)
+
+    def chooseAction(self, gameState):
+        #curState = gameState
+
+
+        if util.flipCoin(self.epsilon):
+            legalActions = gameState.getLegalActions(self.index)
+            random.choice(legalActions)
+        else:
+
+            for i in range(50):
+                #print i
+                curState = gameState
+                foods = self.getFood(curState).asList()
+                while curState.getAgentPosition(self.index) not in foods:
+                    curPos = curState.getAgentPosition(self.index)
+                    legalActions = curState.getLegalActions(self.index)
+                    legalActions.remove('Stop')
+                    #action = random.choice(legalActions)
+                    action = self.getBestAction(curState)
+                    nextState = curState.generateSuccessor(self.index, action)
+                    futureRewards = []
+                    for nextAction in nextState.getLegalActions(self.index):
+                        futureRewards.append(self.getQValue(nextState, nextAction))
+                    QState = self.getReward(curState, action) + self.gamma * max(futureRewards)
+                    self.brain[(curState, action)] = QState
+                    curState = nextState
+        return self.getBestAction(gameState)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
