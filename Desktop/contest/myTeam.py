@@ -104,7 +104,7 @@ class QLearningAgent(ReflexCaptureAgent):
         self.observationHistory = []
 
 
-        
+
     def getFeatures(self, gameState, action):
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
