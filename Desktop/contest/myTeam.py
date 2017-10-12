@@ -17,6 +17,9 @@ import random, time, util
 from game import Directions, Actions
 import game
 from util import nearestPoint
+import sys
+
+sys.path.append('teams/RealDaddy/')
 
 
 #################
