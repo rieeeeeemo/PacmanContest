@@ -26,7 +26,7 @@ from util import nearestPoint
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='Caesar', second='Caesar'):
+               first='CasualTeam', second='DefensiveReflexAgent'):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -93,6 +93,7 @@ class DummyAgent(CaptureAgent):
         '''
 
         return random.choice(actions)
+
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
     """
@@ -732,6 +733,126 @@ class Caesar(ReflexCaptureAgent):
         return {'eats-invader': 5, 'invaders-1-step-away': 0, 'teammateDist': 1.5, 'closest-food': -1,
                 'eats-capsules': 10.0, '#-of-dangerous-ghosts-1-step-away': -20, 'eats-ghost': 1.0,
                 '#-of-harmless-ghosts-1-step-away': 0.1, 'stopped': -5, 'eats-food': 1}
+
+
+class CasualTeam(ReflexCaptureAgent):
+
+
+    def getFeatures(self, gameState, action):
+        foods = self.getFood(gameState)
+        foodList = foods.asList()
+        walls = gameState.getWalls()
+        isPacman = self.getSuccessor(gameState, action).getAgentState(self.index).isPacman
+        zone = (self.index - self.index % 2) / 2
+
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        chasers = [a for a in opponents if not (a.isPacman) and a.getPosition() != None]
+        invaders = [i for i in opponents if i.isPacman and i.getPosition() != None]
+
+        features = util.Counter()
+
+        if action == Directions.STOP:
+            features['Stop'] = 1
+        nextState = gameState.generateSuccessor(self.index, action)
+        nextPos = nextState.getAgentPosition(self.index)
+        nextLegalActions = nextState.getLegalActions(self.index)
+        nextLegalActions.remove('Stop')
+        for chaser in chasers:
+            rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+            backPos = gameState.generateSuccessor(self.index, rev).getAgentPosition(self.index)
+            actionsTmp = nextState.getLegalActions(self.index)
+            actionsTmp.remove('Stop')
+
+            #if backPos == chaser.getPosition and len(actionsTmp) == 1:
+              #  features['DeadEnd'] = 1
+
+            if nextPos == chaser.getPosition():
+                if chaser.scaredTimer > 0:
+                    features['EatGhost'] += 1
+                    features['EatFood'] += 2
+                else:
+                    features['DangerousGhost'] = 1
+                    features['SafeGhost'] = 0
+            elif nextPos in Actions.getLegalNeighbors(chaser.getPosition(), walls):
+
+                if chaser.scaredTimer > 0:
+                    features['SafeGhost'] += 1
+                elif isPacman:
+                    features['SafeGhost'] = 0
+                    features['DangerousGhost'] += 2
+
+        if gameState.getAgentState(self.index).scaredTimer == 0:
+            for invader in invaders:
+                if nextPos == invader.getPosition:
+                    features['EatInvader'] = 1
+                elif nextPos in Actions.getLegalNeighbors(invader.getPosition(), walls):
+                    features['OneStepInvader'] += 1
+        else:
+            for invader in invaders:
+                if nextPos == invader.getPosition:
+                    features['EatInvader'] = -10
+                elif nextPos in Actions.getLegalNeighbors(invader.getPosition(), walls):
+                    features['OneStepInvader'] += -10
+
+        for capsule in self.getCapsules(gameState):
+            if nextPos == capsule:
+                features['EatCapsule'] = 1
+
+        if not features['DangerousGhost']:
+            if nextPos in foods:
+                features['EatFood'] = 1.0
+            if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+                myFood = []
+                for food in foodList:
+                    food_x, food_y = food
+                    if (food_y > zone * walls.height / 3 and food_y < (zone + 1) * walls.height / 3):
+                        myFood.append(food)
+                if len(myFood) == 0:
+                    myFood = foodList
+                myMinDist = min([self.getMazeDistance(nextPos, food) for food in myFood])
+                if myMinDist is not None:
+                    features["ClosestFood"] = float(myMinDist) / (walls.width * walls.height)
+        features.divideAll(10.0)
+        return features
+
+    def getWeights(self, gameState, action):
+        return {'Stop': -5, 'EatGhost': 1.0, 'DeadEnd': -2, 'EatFood': 1, 'DangerousGhost': -20, 'SafeGhost': 0.1,
+                'EatInvader': 5, 'OneStepInvader': 0, 'EatCapsule': 10, 'ClosestFood': -1}
+    def registerInitialState(self, gameState):
+        self.start = gameState.getAgentPosition(self.index)
+        CaptureAgent.registerInitialState(self, gameState)
+
+    def chooseAction(self, gameState):
+        actions = gameState.getLegalActions(self.index)
+
+        # You can profile your evaluation time by uncommenting these lines
+        # start = time.time()
+        values = [self.evaluate(gameState, a) for a in actions]
+
+        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+
+        foodLeft = len(self.getFood(gameState).asList())
+
+        #print gameState.getAgentState(self.index).numCarrying
+        #carry = random.randint(1, 5)
+
+        if gameState.getAgentState(self.index).numCarrying > 2:
+            bestDist = 9999
+            for action in actions:
+                successor = self.getSuccessor(gameState, action)
+                pos2 = successor.getAgentPosition(self.index)
+                dist = self.getMazeDistance(self.start, pos2)
+                if dist < bestDist:
+                    bestAction = action
+                    bestDist = dist
+            return bestAction
+
+        return random.choice(bestActions)
+
+
 
 
 
