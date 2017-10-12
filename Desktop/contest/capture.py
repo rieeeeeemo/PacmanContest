@@ -1,10 +1,12 @@
+
+
 # capture.py
 # ----------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -86,10 +88,10 @@ class GameState:
     """
     A GameState specifies the full game state, including the food, capsules,
     agent configurations and score changes.
-  
+
     GameStates are used by the Game object to capture the actual state of the game and
     can be used by agents to reason about the game.
-  
+
     Much of the information in a GameState is stored in a GameStateData object.  We
     strongly suggest that you access that data via the accessor methods below rather
     than referring to the GameStateData object directly.
@@ -1064,3 +1066,4 @@ if __name__ == '__main__':
     save_score(games[0])
     # import cProfile
     # cProfile.run('runGames( **options )', 'profile')
+
