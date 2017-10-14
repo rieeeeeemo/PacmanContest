@@ -80,6 +80,70 @@ class EvaluationBasedAgent(CaptureAgent):
     def getWeights(self, gameState, action):
         return {'successorScore': 1.0}
 
+class Node:
+    def __init__(self, data):
+        self.data = data
+        self.children = []
+
+
+    def getData(self):
+        return self.data
+
+    def setData(self, data):
+        self.data = data
+
+    def getChildren(self):
+        return self.children
+
+    def add(self, node):
+        if len(self.children) == 4:
+            return False
+        else:
+            self.children.append(node)
+
+
+    def go(self, data):
+        for child in self.children:
+            if child.getData() == data:
+                return child
+        return None
+
+class Tree:
+
+    def __init__(self, head):
+        self.head = Node(head)
+        self.num = 0
+
+
+
+    def linkToHead(self, node):
+        self.head.add(node)
+
+    def insert(self, path, data):
+        cur = self.head
+        for step in path:
+            if cur.go(step) == None:
+                return False
+            else:
+                cur = cur.go(step)
+        cur.add(Node(data))
+        return True
+
+    def searchAndUpdate(self, path, data):
+        cur = self.head
+        for step in path:
+            if cur.go(step) == None:
+                return None
+            else:
+                cur = cur.go(step)
+                dataTmp = cur.data
+                if data > dataTmp[2]:
+                    dataTmp[2] = data
+                cur.setData(dataTmp)
+        return cur
+        
+        
+        
 
 class Attacker(EvaluationBasedAgent):
     "Gera Carlo, o agente ofensivo."
@@ -153,6 +217,88 @@ class Attacker(EvaluationBasedAgent):
 
 
 
+    '''
+    def randomSimulation(self, depth, gameState, tree):
+        newState = gameState.deepCopy()
+        totalEva = 0
+        head = tree.head
+        path = [head]
+        while depth > 0:
+            currentBestAction = []
+
+            actions = newState.getLegalActions(self.index)
+            actions.remove('Stop')
+            currentDirection = newState.getAgentState(self.index).configuration.direction
+            reversedDirection = Directions.REVERSE[newState.getAgentState(self.index).configuration.direction]
+            if reversedDirection in actions and len(actions) > 1:
+                actions.remove(reversedDirection)
+
+            action = None
+            if util.flipCoin(0.1):
+                action = random.choice(actions)
+            else:
+
+                bestVal = self.evaluate(newState, actions[0])
+                for action in actions:
+                    if self.evaluate(newState, action) >= bestVal:
+                        currentBestAction.append(action)
+                action = random.choice(currentBestAction)
+
+            totalEva += self.evaluate(newState, action)
+            bestNode = Node((newState, action, self.evaluate(newState, action)))
+
+            head.add(bestNode)
+            path.append(bestNode)
+            newState = newState.generateSuccessor(self.index, action)
+            head = bestNode
+
+            depth -= 1
+        head = tree.head
+        # tree.searchAndUpdate(path, totalEva)
+        return path, totalEva
+    '''
+    
+    '''
+
+    def chooseAction(self, gameState):
+        # You can profile your evaluation time by uncommenting these lines
+        # start = time.time()
+
+        # Updates inactiveTime. This variable indicates if the agent is locked.
+        currentEnemyFood = len(self.getFood(gameState).asList())
+        if self.numEnemyFood != currentEnemyFood:
+            self.numEnemyFood = currentEnemyFood
+            self.inactiveTime = 0
+        else:
+            self.inactiveTime += 1
+        # If the agent dies, inactiveTime is reseted.
+        if gameState.getInitialAgentPosition(self.index) == gameState.getAgentState(self.index).getPosition():
+            self.inactiveTime = 0
+
+        # Get valid actions. Staying put is almost never a good choice, so
+        # the agent will ignore this action.
+
+        tree = Tree((gameState, None, 0))
+        newState = gameState.deepCopy()
+        for i in range(30):
+            path, totalVal = self.randomSimulation(5, newState, tree)
+            pathLen = len(path)
+            tree.searchAndUpdate(path, totalVal)
+
+        # head = tree.head
+
+
+
+
+        finalActions = []
+        maxVal = tree.head.children[0].getData()[2]
+
+        for child in tree.head.children:
+            if child.getData()[2] >= maxVal:
+                finalActions.append(child.getData()[1])
+        return random.choice(finalActions)
+'''
+        
     def randomSimulation(self, depth, gameState):
         """
         Random simulate some actions for the agent. The actions other agents can take
