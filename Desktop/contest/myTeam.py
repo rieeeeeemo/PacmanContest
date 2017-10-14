@@ -210,7 +210,7 @@ class Attacker(EvaluationBasedAgent):
             closest_enemies = filter(lambda x: x[0] == closestPos, zip(positions, inRange))
             for agent in closest_enemies:
                 if agent[1].scaredTimer > 0:
-                    return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': 0, 'isPacman': 0}
+                    return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': -5, 'isPacman': 0}
 
         # Weights normally used
         return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': 2, 'isPacman': 0, 'deadEnd': -1}
@@ -395,7 +395,7 @@ class Attacker(EvaluationBasedAgent):
             new_state = gameState.generateSuccessor(self.index, a)
             value = 0
             for i in range(1, 31):
-                value += self.randomSimulation(20, new_state)
+                value += self.randomSimulation(15, new_state)
             fvalues.append(value)
 
         best = max(fvalues)
