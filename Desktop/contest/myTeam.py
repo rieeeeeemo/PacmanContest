@@ -92,10 +92,14 @@ class Attacker(EvaluationBasedAgent):
         successor = self.getSuccessor(gameState, action)
 
         # Compute score from successor state
-        features['successorScore'] = self.getScore(successor)
+        #features['successorScore'] = self.getScore(successor)
 
         # Compute distance to the nearest food
         foodList = self.getFood(successor).asList()
+        
+        features['successorScore'] = -len(foodList)
+        features['return'] = self.getScore(successor)
+        
         if len(foodList) > 0:
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -128,7 +132,7 @@ class Attacker(EvaluationBasedAgent):
         """
         # If tha agent is locked, we will make him try and atack
         if self.inactiveTime > 80:
-            return {'successorScore': 200, 'distanceToFood': -5, 'distanceToGhost': 2, 'isPacman': 1000}
+            return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': 2, 'isPacman': 1000}
 
         # If opponent is scared, the agent should not care about distanceToGhost
         successor = self.getSuccessor(gameState, action)
@@ -142,91 +146,12 @@ class Attacker(EvaluationBasedAgent):
             closest_enemies = filter(lambda x: x[0] == closestPos, zip(positions, inRange))
             for agent in closest_enemies:
                 if agent[1].scaredTimer > 0:
-                    return {'successorScore': 200, 'distanceToFood': -5, 'distanceToGhost': 0, 'isPacman': 0}
+                    return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': 0, 'isPacman': 0}
 
         # Weights normally used
-        return {'successorScore': 200, 'distanceToFood': -5, 'distanceToGhost': 2, 'isPacman': 0, 'deadEnd': -1}
+        return {'return':100, 'successorScore': 150, 'distanceToFood': -5, 'distanceToGhost': 2, 'isPacman': 0, 'deadEnd': -1}
 
-    '''def getFeatures(self, gameState, action):
-        foods = self.getFood(gameState)
-        foodList = foods.asList()
-        walls = gameState.getWalls()
-        isPacman = self.getSuccessor(gameState, action).getAgentState(self.index).isPacman
-        zone = (self.index - self.index % 2) / 2
 
-        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-        chasers = [a for a in opponents if not (a.isPacman) and a.getPosition() != None]
-        invaders = [i for i in opponents if i.isPacman and i.getPosition() != None]
-
-        features = util.Counter()
-
-        if action == Directions.STOP:
-            features['Stop'] = 1
-        nextState = gameState.generateSuccessor(self.index, action)
-        nextPos = nextState.getAgentPosition(self.index)
-        nextLegalActions = nextState.getLegalActions(self.index)
-        nextLegalActions.remove('Stop')
-        for chaser in chasers:
-            rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-            backPos = gameState.generateSuccessor(self.index, rev).getAgentPosition(self.index)
-            actionsTmp = nextState.getLegalActions(self.index)
-            actionsTmp.remove('Stop')
-            if backPos == chaser.getPosition and len(actionsTmp) == 1:
-                features['DeadEnd'] = 1
-
-            if nextPos == chaser.getPosition():
-                if chaser.scaredTimer > 0:
-                    features['EatGhost'] += 1
-                    features['EatFood'] += 2
-                else:
-                    features['DangerousGhost'] = 1
-                    features['SafeGhost'] = 0
-            elif nextPos in Actions.getLegalNeighbors(chaser.getPosition(), walls):
-
-                if chaser.scaredTimer > 0:
-                    features['SafeGhost'] += 1
-                elif isPacman:
-                    features['SafeGhost'] = 0
-                    features['DangerousGhost'] += 1
-
-        if gameState.getAgentState(self.index).scaredTimer == 0:
-            for invader in invaders:
-                if nextPos == invader.getPosition:
-                    features['EatInvader'] = 1
-                elif nextPos in Actions.getLegalNeighbors(invader.getPosition(), walls):
-                    features['OneStepInvader'] += 1
-        else:
-            for invader in invaders:
-                if nextPos == invader.getPosition:
-                    features['EatInvader'] = -10
-                elif nextPos in Actions.getLegalNeighbors(invader.getPosition(), walls):
-                    features['OneStepInvader'] += -10
-
-        for capsule in self.getCapsules(gameState):
-            if nextPos == capsule:
-                features['EatCapsule'] = 1
-
-        if not features['DangerousGhost']:
-            if nextPos in foods:
-                features['EatFood'] = 1.0
-            if len(foodList) > 0:  # This should always be True,  but better safe than sorry
-                myFood = []
-                for food in foodList:
-                    food_x, food_y = food
-                    if (food_y > zone * walls.height / 3 and food_y < (zone + 1) * walls.height / 3):
-                        myFood.append(food)
-                if len(myFood) == 0:
-                    myFood = foodList
-                myMinDist = min([self.getMazeDistance(nextPos, food) for food in myFood])
-                if myMinDist is not None:
-                    features["ClosestFood"] = float(myMinDist) / (walls.width * walls.height)
-        features.divideAll(10.0)
-        return features
-
-    def getWeights(self, gameState, action):
-        return {'Stop': -5, 'EatGhost': 1.0, 'DeadEnd': -2, 'EatFood': 1, 'DangerousGhost': -20, 'SafeGhost': 0.1,
-                'EatInvader': 5, 'OneStepInvader': 0, 'EatCapsule': 10, 'ClosestFood': -1}'''
-    #
 
     def randomSimulation(self, depth, gameState):
         """
